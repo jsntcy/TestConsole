@@ -38,9 +38,10 @@
         public static IEnumerable<IEnumerable<T>> GroupElements<T>(this IEnumerable<T> collection, int batchSize)
         {
             int total = 0;
-            while (total < collection.Count())
+            var enumerable = collection as T[] ?? collection.ToArray();
+            while (total < enumerable.Count())
             {
-                yield return collection.Skip(total).Take(batchSize);
+                yield return enumerable.Skip(total).Take(batchSize);
                 total += batchSize;
             }
         }

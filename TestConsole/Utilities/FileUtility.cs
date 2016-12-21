@@ -102,6 +102,15 @@
             }
         }
 
+        public static string NormalizeFilePathToRelative(string path)
+        {
+            if (path == null)
+            {
+                return null;
+            }
+            var normalizedPath = path.Trim(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
+            return string.IsNullOrEmpty(normalizedPath) ? "." : normalizedPath;
+        }
 
         #region Private Methods
 

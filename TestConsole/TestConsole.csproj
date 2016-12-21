@@ -70,6 +70,7 @@
     <Compile Include="Utilities\LinqUtility.cs" />
     <Compile Include="Utilities\MarkdownUtility.cs" />
     <Compile Include="Utilities\RegexUtility.cs" />
+    <Compile Include="Utilities\RelativePath.cs" />
     <Compile Include="Utilities\StringExtension.cs" />
     <Compile Include="Utilities\TaskHelper.cs" />
   </ItemGroup>

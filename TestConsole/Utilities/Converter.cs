@@ -1,4 +1,4 @@
-﻿namespace TestConsole
+﻿namespace TestConsole.Utilities
 {
     using System;
     using System.Collections.Generic;
@@ -340,7 +340,7 @@
 
         public static explicit operator string(RepoId id)
         {
-            return id == null ? null : id.ToString();
+            return id?.ToString();
         }
 
         public static explicit operator RepoId(string id)
