@@ -316,18 +316,56 @@
 
             try
             {
+                Console.WriteLine(task.Status + ": RunTaskSilentlyNoWait");
                 await task;
+                Console.WriteLine(task.Status + ": RunTaskSilentlyNoWait");
             }
             catch (Exception ex)
             {
-                if (taskDescription != null)
-                {
-                    TraceEx.TraceError($"{taskDescription} failed: {ex}");
-                }
-                else
-                {
-                    TraceEx.TraceError($"Running task failed: {ex}");
-                }
+                TraceEx.TraceError(taskDescription != null
+                    ? $"{taskDescription} failed: {ex}"
+                    : $"Running task failed: {ex}");
+            }
+        }
+
+        // The same behavior as "RunTaskSilentlyNoWait".
+        // but it is bad because it returns Task,
+        // and the caller has chance to wait "RunTaskSilentlyNoWaitBad" to complete.
+        public static async Task RunTaskSilentlyNoWaitBad(Task task, string taskDescription = null)
+        {
+            Guard.ArgumentNotNull(task, nameof(task));
+
+            try
+            {
+                Console.WriteLine(task.Status + ": RunTaskSilentlyNoWait1");
+                await task;
+                Console.WriteLine(task.Status + " : RunTaskSilentlyNoWait1");
+            }
+            catch (Exception ex)
+            {
+                TraceEx.TraceError(taskDescription != null
+                    ? $"{taskDescription} failed: {ex}"
+                    : $"Running task failed: {ex}");
+            }
+        }
+
+        // The same as RunTaskSilentlyNoWait.
+        public static async void RunTaskSilentlyNoWaitUsingFunc(Func<Task> task, string taskDescription = null)
+        {
+            Guard.ArgumentNotNull(task, nameof(task));
+
+            try
+            {
+                Task t = task();
+                Console.WriteLine(t.Status);
+                await t;
+                Console.WriteLine(t.Status);
+            }
+            catch (Exception ex)
+            {
+                TraceEx.TraceError(taskDescription != null
+                    ? $"{taskDescription} failed: {ex}"
+                    : $"Running task failed: {ex}");
             }
         }
     }

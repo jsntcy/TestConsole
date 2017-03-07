@@ -1,6 +1,7 @@
 ﻿namespace TestConsole.Utilities
 {
     using System;
+    using System.Diagnostics;
     using System.IO;
     using System.Linq;
 
@@ -9,6 +10,24 @@
         private static readonly char[] InvalidPathChars = Path.GetInvalidPathChars();
         private static readonly char[] InvalidFileNameChars = Path.GetInvalidFileNameChars();
         private static readonly char[] AdditionalInvalidPathChars = new char[] { '*' };
+
+        public static void Test()
+        {
+            var start = Stopwatch.StartNew();
+            for (int i = 0; i < 1000000; i++)
+            {
+                RelativePath.Normalize(@"./a/b.txt");
+            }
+
+            Console.WriteLine($"{start.ElapsedMilliseconds}");
+
+            start.Restart();
+            for (int i = 0; i < 1000000; i++)
+            {
+                FileUtility.NormalizeRelativePath(@"./a/b.txt");
+            }
+            Console.WriteLine($"{start.ElapsedMilliseconds}");
+        }
 
         public static void InsertText(string path, string newText)
         {

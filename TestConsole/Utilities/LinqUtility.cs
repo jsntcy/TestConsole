@@ -4,6 +4,20 @@
     using System.Collections.Generic;
     using System.Linq;
 
+    public class Item
+    {
+        public int? Number { get; set; }
+        public string File { get; set; }
+        public GitChangeType Type { get; set; }
+    }
+
+    public enum GitChangeType
+    {
+        Created,
+        Updated,
+        Deleted
+    }
+
     public enum ManifestItemType
     {
         Content,
@@ -136,6 +150,93 @@
                                  select manifestItem).ToArray();
 
             //var orderedItems = manifestItems.OrderByDescending(item => item.Type == ManifestItemType.Resource).ToArray();
+        }
+
+        public static void SortByValue()
+        {
+            Dictionary<string, GitChangeType> changes = new Dictionary<string, GitChangeType>
+            {
+                {"3", GitChangeType.Created },
+                {"1", GitChangeType.Deleted },
+                {"4", GitChangeType.Updated },
+                {"5", GitChangeType.Deleted }
+            };
+            if (changes.ContainsKey("7"))
+            {
+                var changeType = changes["7"];
+            }
+            GitChangeType type1;
+            if (changes.TryGetValue("", out type1))
+            {
+                Console.WriteLine("");
+            }
+            var wh = new List<string> { }.FirstOrDefault(change => change == "sd");
+            var newChanges = changes
+                .OrderByDescending(change => change.Value);
+            foreach (var newChange in newChanges)
+            {
+                Console.WriteLine(newChange.Key + ":" + newChange.Value);
+            }
+
+
+            var items = new List<Item>
+            {
+                new Item
+                {
+                    File ="a.txt",
+                    Number = 2
+                },
+                new Item
+                {
+                    Number = 2,
+                    Type = GitChangeType.Updated
+                },
+                new Item
+                {
+                    File = "a.txt",
+                    Number = 1
+                },
+                new Item
+                {
+                    File = "b.txt",
+                    Number = 1
+                },
+                new Item
+                {
+                    Type = GitChangeType.Updated
+                },
+                new Item
+                {
+                    Number = 1,
+                    Type = GitChangeType.Created
+                },
+                new Item
+                {
+                    File = "a.txt",
+                    Type = GitChangeType.Created
+                }
+            };
+
+            var sl = new List<string>();
+            var filter = sl.Where(str => str.StartsWith("a") && str[2] == 'r');
+
+            var displayItems = items
+                    .GroupBy(item => item.File)
+                    .OrderBy(group => group.Key)
+                    .SelectMany(group => group.OrderBy(item => item.Number))
+                    .ToList();
+            Func<Item, int?> func = item11 => 2;
+            var newItems = items.OrderBy(item => item.Number).ToArray();
+            Action<int> action = Console.WriteLine;
+
+            Open(5, action);
+        }
+
+        public static void Open(int count, Action<int> func)
+        {
+            count++;
+            func(count);
+            count--;
         }
 
         public static void SortPublishFiles()
