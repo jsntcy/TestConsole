@@ -112,5 +112,19 @@
             // Note that when JsonConvert simple types, quotes will be added to the value
             return JsonConvert.SerializeObject(value, setting);
         }
+
+        public static string ToJsonString(object value, bool ignoreNullValue = false)
+        {
+            Guard.ArgumentNotNull(value, nameof(value));
+
+            var setting = new JsonSerializerSettings
+            {
+                Converters = new JsonConverter[] { new StringEnumConverter() },
+                NullValueHandling = ignoreNullValue ? NullValueHandling.Ignore : NullValueHandling.Include
+            };
+
+            // Note that when JsonConvert simple types, quotes will be added to the value
+            return JsonConvert.SerializeObject(value, setting);
+        }
     }
 }
