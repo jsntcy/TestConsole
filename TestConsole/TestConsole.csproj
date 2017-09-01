@@ -9,9 +9,10 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>TestConsole</RootNamespace>
     <AssemblyName>TestConsole</AssemblyName>
-    <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -53,6 +54,7 @@
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.ComponentModel.DataAnnotations" />
+    <Reference Include="System.configuration" />
     <Reference Include="System.Core" />
     <Reference Include="System.Diagnostics.TraceEx, Version=1.3.813.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\System.Diagnostics.TraceEx.1.3.813.0\lib\net45\System.Diagnostics.TraceEx.dll</HintPath>
@@ -85,6 +87,7 @@
     <Compile Include="Utilities\FlagOperation.cs" />
     <Compile Include="Utilities\FolderUtility.cs" />
     <Compile Include="Models\LogItem.cs" />
+    <Compile Include="Utilities\ServiceConfiguration.cs" />
     <Compile Include="Utilities\UpdatePackageVersion.cs" />
     <Compile Include="Utilities\Guard.cs" />
     <Compile Include="Utilities\IEnumerableExtension.cs" />

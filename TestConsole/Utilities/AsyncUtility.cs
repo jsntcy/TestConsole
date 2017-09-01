@@ -108,6 +108,7 @@
 
         public static async Task<IReadOnlyList<string>> handleasync(string s)
         {
+            throw new Exception("handleasync ex");
             var httpClient = new HttpClient();
 
             var result = await httpClient.GetAsync("http://stackoverflow.com");
@@ -133,7 +134,7 @@
         {
             List<string> ls = new List<string>();
             List<string> first = new List<string> { "1" };
-            List<string> second = new List<string> { "1" };
+            List<string> second = new List<string> { "2" };
 
             var diff = second.Except(first);
             //ls.Add("abc");

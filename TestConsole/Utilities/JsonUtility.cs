@@ -6,6 +6,7 @@
     using Newtonsoft.Json;
     using Newtonsoft.Json.Converters;
     using System.Collections.Generic;
+    using System.Threading.Tasks;
 
     public class MasterRedirection
     {
@@ -86,11 +87,13 @@
             }
         }
 
-        public static Stream ToJsonStream(object value)
+        public static Stream ToJsonStream(object value, bool ignoreNullValue = false)
         {
+            Guard.ArgumentNotNull(value, nameof(value));
+
             var memoryStream = new MemoryStream();
             var streamWriter = new StreamWriter(memoryStream);
-            var jsonSerializer = new JsonSerializer();
+            var jsonSerializer = new JsonSerializer { NullValueHandling = ignoreNullValue ? NullValueHandling.Ignore : NullValueHandling.Include };
 
             jsonSerializer.Serialize(streamWriter, value);
 
@@ -126,5 +129,31 @@
             // Note that when JsonConvert simple types, quotes will be added to the value
             return JsonConvert.SerializeObject(value, setting);
         }
+
+        public static void ToJsonFile<T>(string filePath, T obj) where T : class
+        {
+            using (var fileStream = File.OpenWrite(filePath))
+            using (var jsonStream = ToJsonStream(obj, true))
+            {
+                fileStream.SetLength(0);
+                jsonStream.CopyTo(fileStream);
+            }
+        }
+
+        public static Task GenerateMtaJsonFilesAsync(this IEnumerable<string> manifestItems)
+        {
+            Guard.ArgumentNotNull(manifestItems, nameof(manifestItems));
+
+            return manifestItems.ForEachInParallelAsync(GenerateMtaJsonFileAsync);
+        }
+
+        private static Task GenerateMtaJsonFileAsync(string manifestItem)
+        {
+            return Task.Run(() =>
+            {
+                JsonUtility.ToJsonFile(manifestItem, manifestItem);
+            });
+        }
+
     }
 }

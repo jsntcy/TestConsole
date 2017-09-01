@@ -1,20 +1,47 @@
 ﻿using HtmlAgilityPack;
 using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.IO;
 using System.Linq;
 using System.Net;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using TestConsole.Models;
 using TestConsole.Utilities;
+using Newtonsoft.Json;
 using static TestConsole.Utilities.PerformanceScopeUtility;
 
 using MsExchange = Microsoft.Exchange.WebServices.Data;
 
 namespace TestConsole
 {
+    public class MyLogger
+    {
+        public MyLogger()
+        {
+            Console.WriteLine("MyLogger constructor");
+        }
+    }
+
+    public class DefaultConsoleApplicationLogger
+    {
+        private static readonly MyLogger Logger;
+
+        static DefaultConsoleApplicationLogger()
+        {
+            Console.WriteLine("DefaultConsoleApplicationLogger constructor");
+            Logger = new MyLogger();
+        }
+
+        public static MyLogger GetLogger()
+        {
+            return Logger;
+        }
+    }
+
     public class Work
     {
         public string WorkingDirectory { get; }
@@ -85,6 +112,43 @@ namespace TestConsole
         public string Url { get; set; }
     }
 
+    public class Hash
+    {
+        private readonly Dictionary<string, object> _nestedDictionary;
+
+        public Hash()
+        {
+            this._nestedDictionary = new Dictionary<string, object>();
+        }
+
+        public void Add(KeyValuePair<string, object> item)
+        {
+            ((ICollection<KeyValuePair<string, object>>)this._nestedDictionary).Add(item);
+        }
+
+        public void Add(string key, object value)
+        {
+            this._nestedDictionary.Add(key, value);
+        }
+
+        public static Hash FromDictionary(IDictionary<string, object> dictionary)
+        {
+            Hash hash = new Hash();
+            foreach (KeyValuePair<string, object> current in dictionary)
+            {
+                if (current.Value is Dictionary<string, object>)
+                {
+                    hash.Add(current.Key, Hash.FromDictionary((IDictionary<string, object>)current.Value));
+                }
+                else
+                {
+                    hash.Add(current);
+                }
+            }
+            return hash;
+        }
+    }
+
     class Program
     {
         public async static Task DoStuff()
@@ -145,8 +209,241 @@ namespace TestConsole
              sb.AppendLine("into testsb");
         }
 
+        private static IEnumerable<int> TestLoop(int token)
+        {
+            Console.WriteLine(token);
+            while (true)
+            {
+                switch (token)
+                {
+                    case 5:
+                        yield return 1;
+                        token = 3;
+                        break;
+                    case 3:
+                        token = 2;
+                        continue;
+                    case 2:
+                        break;
+                    default:
+                        throw new InvalidDataException("");
+                }
+            }
+        }
+
+        public static async void WaitForSomething()
+        {
+            Console.WriteLine("before delay 1000");
+            await Task.Delay(1000);
+            Console.WriteLine("after delay 1000");
+        }
+
+        private static readonly Regex SelfBookmarkReferenceRegex = new Regex(@"^\#(?<bookmark>.+)", RegexOptions.Compiled);
+        private static readonly Regex BookMarkReferenceRegex = new Regex(@"(?<fileReferencePath>.*)((?<extension>\.md|\.html)\#)(?<bookmark>.+)", RegexOptions.Compiled);
+        private static readonly Regex QueryReferenceRegex = new Regex(@"(?<fileReferencePath>.*)((?<extension>\.md|\.html)\?)(?<query>.+)", RegexOptions.Compiled);
+        private static readonly Regex NormalReferenceRegex = new Regex(@"(?<fileReferencePath>.*)(?<extension>\.md|\.html)$", RegexOptions.Compiled);
+
+        private static string GetNormalizedFileReference(string reference, string replaceExtension)
+        {
+            var selfBookmarkMatch = SelfBookmarkReferenceRegex.Match(reference);
+            if (selfBookmarkMatch.Success)
+            {
+                return selfBookmarkMatch.Value;
+            }
+
+            var bookmarkMatch = BookMarkReferenceRegex.Match(reference);
+            if (bookmarkMatch.Success)
+            {
+                var originalExtension = bookmarkMatch.Groups["extension"].Value;
+                return NormalizeBookmarkReference(bookmarkMatch, replaceExtension);
+            }
+
+            var queryMatch = QueryReferenceRegex.Match(reference);
+            if (queryMatch.Success)
+            {
+                var originalExtension = queryMatch.Groups["extension"].Value;
+                return NormalizeQueryReference(queryMatch, replaceExtension);
+            }
+
+            var normalMatch = NormalReferenceRegex.Match(reference);
+            if (normalMatch.Success)
+            {
+                var originalExtension = normalMatch.Groups["extension"].Value;
+                return NormalizeNormalReference(normalMatch, replaceExtension);
+            }
+
+            return reference;
+        }
+
+        private static string NormalizeBookmarkReference(Match match, string replaceExtension)
+        {
+            var referencePath = match.Groups["fileReferencePath"].Value;
+            return string.Format("{0}{1}#{2}", referencePath.ToLower(), replaceExtension.ToLower(), match.Groups["bookmark"].Value);
+        }
+
+        private static string NormalizeQueryReference(Match match, string replaceExtension)
+        {
+            var referencePath = match.Groups["fileReferencePath"].Value;
+            return string.Format("{0}{1}?{2}", referencePath.ToLower(), replaceExtension.ToLower(), match.Groups["query"].Value);
+        }
+
+        private static string NormalizeNormalReference(Match match, string replaceExtension)
+        {
+            var referencePath = match.Groups["fileReferencePath"].Value;
+            return string.Format("{0}{1}", referencePath.ToLower(), replaceExtension.ToLower());
+        }
+
+        public enum PublishItemType
+        {
+            Unknown,
+            XrefMap,
+            FileMap
+        }
+
+        public class ItemToPublish
+        {
+            [JsonProperty("relative_path")]
+            public string RelativePath { get; set; }
+
+            [JsonProperty("version")]
+            public string Version { get; set; }
+
+            [JsonProperty("type")]
+            public PublishItemType Type { get; set; }
+
+            [JsonExtensionData]
+            public Dictionary<string, object> Metadata { get; set; }
+        }
+
+        public class BuildManifest
+        {
+            [JsonProperty("items_to_publish")]
+            public ItemToPublish[] ItemsToPublish { get; set; }
+
+            public override string ToString()
+            {
+                return JsonUtility.ToJsonString(this);
+            }
+        }
+
+        private static bool IsCurrentDepot(string currentDepotName, string depotName) => string.Equals(depotName, currentDepotName, StringComparison.OrdinalIgnoreCase);
+
+        private static Task<KeyValuePair<string, string>> ret(string s)
+        {
+            return Task.Run(() => { return new KeyValuePair<string, string>(s, s); });
+        }
+
+        private static Task PrintAsync(int i)
+        {
+            return Task.Run(() => { Thread.Sleep(i * 10000); Console.WriteLine($"i is {i}"); });
+        }
+
+        private static string myret()
+        {
+            return null;
+        }
+
+        private static async Task<IReadOnlyList<string>> fff(List<string> ls)
+        {
+            return
+   (from depotToFilePathPair in await ls.SelectInParallelAsync(depotName => ret(depotName))
+    let filePath = depotToFilePathPair.Value
+    where filePath != null
+    let depotName = depotToFilePathPair.Key
+    orderby IsCurrentDepot("5", depotName) descending
+    select filePath)
+    .ToList();
+        }
+
+        class Digit<T>
+        {
+            public Digit(T d) { val = d; }
+            public T val;
+            // ...other members
+
+            // User-defined conversion from Digit to double
+            public static implicit operator T(Digit<T> d)
+            {
+                return d.val;
+            }
+        }
+
         static void Main(string[] args)
         {
+            var da = new string[] { "1" };
+            Digit<string[]> dig = new Digit<string[]>(da);
+            //This call invokes the implicit "double" operator
+            string[] num = dig;
+
+            string snu = null;
+            var tsnu = (string)snu;
+            var t1 = PrintAsync(1);
+            var t2 = PrintAsync(2);
+            var t3 = PrintAsync(3);
+            var t4 = PrintAsync(4);
+            var t5 = PrintAsync(5);
+            var tasks = new List<Task> { t1, t2, t3 };
+            TaskHelper.WhenAll(tasks, 2).Wait();
+            var depots = new List<string> { "2", "1", "3" };
+            var dep = fff(depots).Result;
+
+            var orderDepots = depots.OrderByDescending(depot => IsCurrentDepot("1", depot));
+            var nr = FileUtility.NormalizeRelativePath("test.txt");
+            var de = default(string);
+            var manifestJson = File.ReadAllText(@"C:\Users\ychenu\Downloads\2929183a-17190aeb%5C201708210354455948-master\testMultipleVersion\test.json");
+            var buildManifest = JsonUtility.FromJsonString<BuildManifest>(manifestJson);
+            foreach (var item in buildManifest.ItemsToPublish)
+            {
+                if (item.Type == PublishItemType.XrefMap)
+                {
+                    Console.WriteLine($"{item.RelativePath} is xrefmap");
+                }
+            }
+            IEnumerable<string> itemss = new List<string> {"1.json", "2.json", "3.json"};
+            var itemsss = itemss.ToList();
+            itemss.GenerateMtaJsonFilesAsync().Wait();
+            var filename = Path.ChangeExtension("test\\test.md", ".mta.json");
+            JsonUtility.ToJsonFile(filename, "test");
+            var combined = Path.Combine("test\\index.md", ".mta.json");
+            var loop = TestLoop(3).ToList();
+            var version = "<abc>";
+            var escapedata = Uri.EscapeDataString(version);
+            var data = Uri.UnescapeDataString(escapedata);
+            Dictionary<string, List<string>> repoByKey = new Dictionary<string, List<string>>();
+            repoByKey["key1"] = new List<string> { "1" };
+            var repos = repoByKey["key1"];
+            repos.Add("2");
+            File.WriteAllLines(@"D:\Data\DataFix\FixLocRepoConfig\test.txt", new List<string> {"1", "2"});
+            File.AppendText(@"D:\Data\DataFix\FixLocRepoConfig\test.txt");
+            var now = $"{DateTime.Now.ToString("yyyy-MM-dd-HH-mm-ss")}.log";
+            var utcnow = DateTime.UtcNow.ToString("yyyyMMddHHmmss");
+            var pa = Path.Combine(@"c:\test\testfile", "RepositoryTableData.json");
+            var dir = Path.GetDirectoryName(@"c:\test\testfile\abc.txt");
+            Directory.CreateDirectory(dir);
+            File.WriteAllText(@"c:\test\testfile\abc.txt", "test");
+            var list = new List<int> { };
+            var filter = list.Where(i => i == 3).ToList();
+            var useAsync = ConfigurationManager.AppSettings["UseAsync"];
+            var parallelism = -1;
+            int.TryParse(ConfigurationManager.AppSettings["Parallelism"], out parallelism);
+            Task.Factory.StartNew(() =>
+            {
+                Thread.Sleep(5000);
+                Console.WriteLine("sleep for 5s");
+            }).Wait();
+            var herf = "api/System.Web.UI.MobileControls.MobileListItem.OnBubbleEvent.html#System_Web_UI_MobileControls_MobileListItem_OnBubbleEvent_System_Object_System_EventArgs_";
+            var rep = GetNormalizedFileReference(herf, string.Empty);
+            var dic = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+            dic.Add("a", 1);
+            dic.Add("A", 40);
+            dic.Add("context", new Dictionary<string, object> { { "1", 3 } });
+            var hash = Hash.FromDictionary(dic);
+            Console.WriteLine("before WaitForSomething");
+            WaitForSomething();
+            Console.WriteLine("after WaitForSomething");
+            AsyncAwaitDemo.Get().Wait();
+            var ie = new string[] { }.Where(i => i == "");
+            var jjj = string.Join(",", null );
             try
             {
                 using (var reader = new StreamReader(@"C:\TestFiles\log.json"))

@@ -368,5 +368,22 @@
                     : $"Running task failed: {ex}");
             }
         }
+
+        public static async Task WhenAll(this IEnumerable<Task> tasks, int maxParallelism)
+        {
+            var workers = new Task[maxParallelism];
+            for (int i = 0; i < workers.Length; i++)
+            {
+                workers[i] = Task.CompletedTask;
+            }
+            foreach (var task in tasks)
+            {
+                var completed = await Task.WhenAny(workers);
+                await completed;
+                var index = Array.IndexOf(workers, completed);
+                workers[index] = task;
+            }
+            await Task.WhenAll(tasks);
+        }
     }
 }
