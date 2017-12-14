@@ -338,8 +338,9 @@ namespace TestConsole
             return Task.Run(() => { Thread.Sleep(i * 10000); Console.WriteLine($"i is {i}"); });
         }
 
-        private static string myret()
+        private static string myret(string branch)
         {
+            branch = "a";
             return null;
         }
 
@@ -350,7 +351,7 @@ namespace TestConsole
     let filePath = depotToFilePathPair.Value
     where filePath != null
     let depotName = depotToFilePathPair.Key
-    orderby IsCurrentDepot("5", depotName) descending
+    orderby IsCurrentDepot("5", depotName) descending, depotName
     select filePath)
     .ToList();
         }
@@ -368,23 +369,187 @@ namespace TestConsole
             }
         }
 
+        public static class BranchNames
+        {
+            /// <summary>
+            /// Default Branch name
+            /// </summary>
+            public const string DefaultBranchName = "live";
+
+            /// <summary>
+            /// Default side by side branch name
+            /// </summary>
+            public const string DefaultSideBySideBranchName = "live-sxs";
+
+            /// <summary>
+            /// Master branch name
+            /// </summary>
+            public const string MasterBranch = "master";
+
+            /// <summary>
+            /// Branch created from <see cref="DefaultBranchName"/>
+            /// </summary>
+            public const string CheckoutFromDefaultBranchName = "master";
+
+            /// <summary>
+            /// Virtual Branch Name for Provision
+            /// </summary>
+            public const string ProvisionBranchName = "provision";
+
+            /// <summary>
+            /// Default branches
+            /// </summary>
+            public static string[] DefaultBranches = new string[] { DefaultBranchName, DefaultSideBySideBranchName };
+        }
+
+        public class VersionInfo
+        {
+            public VersionInfo(string versionFolder, string xrefMap)
+            {
+                VersionFolder = versionFolder;
+                XRefMap = xrefMap;
+            }
+
+            [JsonProperty("version_folder")]
+            public string VersionFolder { get; set; }
+
+            [JsonProperty("xref_map")]
+            public string XRefMap { get; set; }
+        }
+
+        private const string DefaultXrefMap = "xrefmap.yml";
+        private const string XrefMapSuffix = ".xrefmap.yml";
+
+        public static string MappingBranch(string branch)
+        {
+            Guard.ArgumentNotNullOrEmpty(branch, nameof(branch));
+
+            return branch.EndsWith("-sxs") ? branch.Substring(0, branch.Length - "-sxs".Length) : branch;
+        }
+
+        [Serializable]
+        public class ListWithStringFallback : List<string>
+        {
+            public ListWithStringFallback() : base()
+            {
+            }
+
+            public ListWithStringFallback(IEnumerable<string> list) : base(list)
+            {
+            }
+        }
+
+        [Serializable]
+        public class BuildJsonConfig
+        {
+            [JsonProperty("xrefService")]
+            public ListWithStringFallback XRefServiceUrls { get; set; }
+        }
+
+        private sealed class BuildConfig
+        {
+            [JsonProperty("build")]
+            public BuildJsonConfig Item { get; set; }
+        }
+
+        public static T GetConfig<T>(string configFile)
+        {
+            if (!File.Exists(configFile)) throw new FileNotFoundException($"Config file {configFile} does not exist!");
+
+            return JsonUtility.Deserialize<T>(configFile);
+        }
+
+        public static void Filter(VersionInfo versionInfo)
+        {
+            versionInfo.VersionFolder = "new";
+        }
+
         static void Main(string[] args)
         {
+            var versionInf = new VersionInfo("old", "xref");
+            Filter(versionInf);
+            var content = GetConfig<BuildConfig>(@"C:\TestFiles\xrefmap\docfx.temp.json");
+            var def = BranchNames.DefaultBranches;
+            var branch1 = MappingBranch("live-sxs");
+            var ps = Path.Combine("/", "/basepath", "ab");
+            Uri uri;
+            if (Uri.TryCreate("http://www.abc.com/base/a.html", UriKind.Relative, out uri))
+            {
+                Console.WriteLine("is relative");
+            }
+                var versionFolder = new VersionInfo("folder", null);
+            File.WriteAllText(@"C:\TestFiles\xrefmap\filemap.now.json", JsonUtility.ToJsonString(versionFolder, true));
+            var paths = new List<string> { "1", "2"};
+            var joinedPath = string.Join(", ", paths);
+            var dict = new Dictionary<int, int>();
+            dict.Add(0, 0);
+            dict.Add(1, 1);
+            dict.Add(2, 2);
+            dict.Remove(0);
+            dict.Add(10, 10);
+
+            foreach (var entry in dict)
+            {
+                Console.WriteLine(entry.Key);
+            }
+
+            Dictionary<string, VersionInfo> versionInfo = new Dictionary<string, VersionInfo>
+            {
+                {"testMoniker-1.0_justfortest", new VersionInfo("v2.0/", null) },
+                {"testMoniker-1.1_justfortest", new VersionInfo("v2.1/", null) }
+            };
+
+            var xrefmaps = new List<string>
+            {
+                "xrefmap.yml",
+                "testMoniker-1.0_justfortest.xrefmap.yml",
+                "testMoniker-1.1_justfortest.xrefmap.yml"
+            };
+
+            var defaultXrefMap = xrefmaps.FirstOrDefault(x => string.Equals(x, DefaultXrefMap, StringComparison.OrdinalIgnoreCase));
+
+            var defaultVersionInfo = !string.IsNullOrEmpty(defaultXrefMap) ? new VersionInfo(string.Empty, defaultXrefMap) : null;
+
+            var xrefmapsWithVersion = xrefmaps.Where(x => !string.IsNullOrEmpty(x) && x.EndsWith(XrefMapSuffix));
+            foreach (var xrefmapWithVersion in xrefmapsWithVersion)
+            {
+                var escapedVersion = xrefmapWithVersion.Substring(0, xrefmapWithVersion.Length - XrefMapSuffix.Length);
+                if (!string.IsNullOrEmpty(escapedVersion))
+                {
+                    var unescapedversion = Uri.UnescapeDataString(escapedVersion);
+                    VersionInfo versionInfoItem;
+                    if (versionInfo.TryGetValue(unescapedversion, out versionInfoItem) && versionInfoItem != null)
+                    {
+                        versionInfoItem.XRefMap = xrefmapWithVersion;
+                    }
+                }
+            }
+
+            var branch = "live";
+            myret(branch);
+            Directory.CreateDirectory(@"c:\ab\c\text.txt");
+            //webc.Get(new Uri("c:\\ab.txt"));
             var da = new string[] { "1" };
+            var fir = da.First(x => x == "2");
+            foreach (var fi in fir)
+            {
+                Console.WriteLine("");
+            }
             Digit<string[]> dig = new Digit<string[]>(da);
             //This call invokes the implicit "double" operator
             string[] num = dig;
 
-            string snu = null;
-            var tsnu = (string)snu;
-            var t1 = PrintAsync(1);
-            var t2 = PrintAsync(2);
-            var t3 = PrintAsync(3);
-            var t4 = PrintAsync(4);
-            var t5 = PrintAsync(5);
-            var tasks = new List<Task> { t1, t2, t3 };
-            TaskHelper.WhenAll(tasks, 2).Wait();
-            var depots = new List<string> { "2", "1", "3" };
+            //string snu = null;
+            //var tsnu = (string)snu;
+            //var t1 = PrintAsync(1);
+            //var t2 = PrintAsync(2);
+            //var t3 = PrintAsync(3);
+            //var t4 = PrintAsync(4);
+            //var t5 = PrintAsync(5);
+            //var tasks = new List<Task> { t1, t2, t3 };
+            //TaskHelper.WhenAll(tasks, 2).Wait();
+            var depots = new List<string> { "1", "4", "2", "3" };
+            var allDepots = depots.Concat(new List<string> { "6" });
             var dep = fff(depots).Result;
 
             var orderDepots = depots.OrderByDescending(depot => IsCurrentDepot("1", depot));

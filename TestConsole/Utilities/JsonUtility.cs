@@ -7,6 +7,7 @@
     using Newtonsoft.Json.Converters;
     using System.Collections.Generic;
     using System.Threading.Tasks;
+    using System.Threading;
 
     public class MasterRedirection
     {
@@ -28,6 +29,17 @@
 
     public static class JsonUtility
     {
+        public static readonly ThreadLocal<JsonSerializer> DefaultSerializer = new ThreadLocal<JsonSerializer>(
+    () => new JsonSerializer
+    {
+        NullValueHandling = NullValueHandling.Ignore,
+        ReferenceLoopHandling = ReferenceLoopHandling.Serialize,
+        Converters =
+        {
+                    new StringEnumConverter { CamelCaseText = true },
+        }
+    });
+
         public static T ReadFromJsonFile<T>(string filePath)
         {
             Guard.ArgumentNotNull(filePath, nameof(filePath));
@@ -155,5 +167,21 @@
             });
         }
 
+        public static T Deserialize<T>(string path, JsonSerializer serializer = null)
+        {
+            using (var stream = File.OpenRead(path))
+            using (StreamReader reader = new StreamReader(stream))
+            {
+                return Deserialize<T>(reader, serializer);
+            }
+        }
+
+        public static T Deserialize<T>(TextReader reader, JsonSerializer serializer = null)
+        {
+            using (JsonReader json = new JsonTextReader(reader))
+            {
+                return (serializer ?? DefaultSerializer.Value).Deserialize<T>(json);
+            }
+        }
     }
 }
